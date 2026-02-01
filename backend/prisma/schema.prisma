@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  avatar    String?
+  color     String?
+  createdAt DateTime @default(now())
+
+  ownedBoards Board[]  @relation("BoardOwner")
+  recents     RecentBoard[]
+}
+
+model Board {
+  id        String   @id
+  name      String   @default("Untitled Board")
+  ownerId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner   User?    @relation("BoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  strokes Stroke[]
+  recentVariable RecentBoard[]
+}
+
+model RecentBoard {
+  userId    String
+  boardId   String
+  visitedAt DateTime @default(now())
+
+  user   User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board  Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@id([userId, boardId])
+}
+
+model Stroke {
+  id      String @id
+  boardId String
+  userId  String
+
+  kind      String
+  shape     String?
+  color     String
+  width     Int
+  points    Json
+  text      String?
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  @@index([boardId, createdAt])
+  @@index([boardId, isDeleted])
+  @@index([boardId, userId])
+}
