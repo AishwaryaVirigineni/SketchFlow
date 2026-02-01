@@ -1,94 +1,125 @@
-# Deploying to AWS
+# Deploying to AWS (The "Interview-Ready" Architecture)
 
-This guide covers deploying your Whiteboard App to AWS using **AWS App Runner** (for Backend), **AWS Amplify** (for Frontend), and **AWS RDS** (for Database).
+This guide deploys a professional, scalable architecture that is perfect for system design interviews.
 
-## Prerequisites
-1.  **AWS Account**: Create one at [aws.amazon.com](https://aws.amazon.com/).
-2.  **GitHub Repository**: Push this code to a GitHub repository.
+**Architecture:**
+*   **Frontend**: AWS Amplify (CI/CD, High availability)
+*   **Backend**: AWS EC2 (Dockerized) behind an **Application Load Balancer (ALB)**.
+    *   *Why ALB?* Handles HTTPS/SSL termination and allows for future auto-scaling.
+*   **Database**: AWS RDS (Managed PostgreSQL).
 
----
-
-## Step 1: Database (AWS RDS)
-1.  Go to the **AWS Console** -> **RDS**.
-2.  Click **Create database**.
-3.  Choose **PostgreSQL**.
-4.  **Template**: Choose **Free tier** (if eligible) or **Dev/Test**.
-5.  **Settings**: Set a Master Username and Password (write these down!).
-6.  **Connectivity**:
-    *   **Public access**: Yes (for easiest setup) or No (if you know how to configure VPC peering for App Runner). *Recommendation: Yes for MVP, prohibitively restrict IP later.*
-7.  **Create**.
-8.  Once created, copy the **Endpoint** (URL).
-9.  Construct your `DATABASE_URL`:
-    `postgresql://USER:PASSWORD@ENDPOINT:5432/whiteboard?schema=public`
+**Estimated Cost**: ~$40/month (Fully covered by your credits).
 
 ---
 
-## Step 2: Backend (AWS App Runner)
-App Runner is the easiest way to run the backend Docker container.
+## Step 1: Network & Security (The Foundation)
+We need security groups to allow traffic to flow correctly.
 
-1.  Go to **AWS App Runner**.
-2.  **Create Service**.
-3.  **Source**: "Source code repository".
-4.  Connect your GitHub and select your repo.
-5.  **Source Directory**: `backend`.
-6.  **Configuration**:
-    *   **Runtime**: Node.js 18+ (or just choose "Configuration via `apprunner.yaml`" if you add one, but UI configuration is fine).
-    *   **Build Command**: `npm install && npx prisma generate && npm run build` (Wait, we have a Dockerfile! Use **Container Registry** or **Source Code** -> **Visual Builder**? App Runner supports building from source for Node, but Docker is safer).
-    *   *Alternative (Better)*: Choose **Source Code**, select the repo. Under "Configure build", choose "Configure all settings here".
-        *   **Runtime**: Nodejs 18
-        *   **Build command**: `npm install && npx prisma generate && npm run build`
-        *   **Start command**: `npm start`
-        *   *Wait, our backend uses `tsx` and isn't fully compiled to JS in a standard way for `node dist/index.js` without issues. The Dockerfile method is safer.*
-    
-    **Recommended Method: Docker Image**
-    If you can push the Docker image to ECR, do that.
-    
-    **Simpler Method (Source Code)**:
-    1. Update `backend/package.json` build script to `tsc` and start to `node --loader ts-node/esm src/index.ts`? No.
-    2. Let's stick to the Dockerfile method if you are comfortable with ECR.
-    3. **Actually, let's use the UI "Build from source" with `tsx`.**
-       *   **Build Command**: `npm install`
-       *   **Start Command**: `npx tsx src/index.ts`
-       *   **Port**: `4000`
-7.  **Environment Variables**:
-    Add `DATABASE_URL` = (your RDS URL from Step 1).
-    Add `PORT` = `4000`.
-    Add `FRONTEND_URL` = (leave blank for now, update later).
-8.  **Deploy**.
-9.  Copy the **Default domain** (e.g., `https://xyz.awsapprunner.com`). This is your `NEXT_PUBLIC_API_URL`.
+1.  Go to **EC2 Console** -> **Reference** (left sidebar) -> **Security Groups**.
+2.  **Create Security Group 1 (ALB-SG)**:
+    *   **Name**: `whiteboard-alb-sg`
+    *   **Inbound Rules**:
+        *   Type: **HTTPS** (443) -> Source: `0.0.0.0/0` (Anywhere)
+        *   Type: **HTTP** (80) -> Source: `0.0.0.0/0`
+3.  **Create Security Group 2 (Backend-SG)**:
+    *   **Name**: `whiteboard-backend-sg`
+    *   **Inbound Rules**:
+        *   Type: **Custom TCP** (Port 4000) -> Source: **Custom** -> Select `whiteboard-alb-sg` (The group you just made).
+        *   Type: **SSH** (22) -> Source: **My IP** (For your access).
+4.  **Create Security Group 3 (Database-SG)**:
+    *   **Name**: `whiteboard-db-sg`
+    *   **Inbound Rules**:
+        *   Type: **PostgreSQL** (5432) -> Source: **Custom** -> Select `whiteboard-backend-sg`.
 
 ---
 
-## Step 3: Frontend (AWS Amplify)
-1.  Go to **AWS Amplify**.
-2.  **Create new app** -> **Gen 2** (or "Host web app" in Gen 1).
-3.  **GitHub**: Connect repo.
-4.  **Monorepo settings**:
-    *   Root: `frontend`
-5.  **Build Settings**: Amplify usually auto-detects Next.js.
-    *   It will run `npm run build`.
-6.  **Environment Variables**:
-    *   `NEXT_PUBLIC_API_URL`: `https://YOUR-BACKEND-URL-FROM-STEP-2` (No trailing slash).
-    *   `NEXT_PUBLIC_WS_URL`: `wss://YOUR-BACKEND-URL-FROM-STEP-2` (Replace `https` with `wss` manually).
-        *   *Note: App Runner supports TLS, so `wss://` on port 443 is correct.*
-7.  **Deploy**.
+## Step 2: Database (AWS RDS)
+1.  Go to **RDS Console** -> **Create database**.
+2.  **Engine**: PostgreSQL.
+3.  **Template**: **Dev/Test** (or Free Tier).
+4.  **Settings**: Set Master Username/Password.
+5.  **Connectivity**:
+    *   **Public Access**: **No** (Best practice! Only EC2 can access it).
+    *   **VPC Security Group**: Choose `whiteboard-db-sg`.
+6.  **Create**.
+7.  Copy the **Endpoint** (URL) when ready.
+8.  Construct `DATABASE_URL`: `postgresql://USER:PASSWORD@ENDPOINT:5432/whiteboard?schema=public`
 
 ---
 
-## Final wiring
-1.  Once Frontend is deployed, you get a URL (e.g., `https://main.appId.amplifyapp.com`).
-2.  Go back to **App Runner (Backend)**.
-3.  Update **Environment Variables**:
-    *   `FRONTEND_URL`: `https://main.appId.amplifyapp.com` (Your actual frontend URL).
-4.  **Redeploy** Backend.
+## Step 3: Backend Instance (EC2)
+1.  **Launch Instance**.
+2.  **Name**: `Whiteboard-Backend`.
+3.  **OS**: Ubuntu 24.04 LTS.
+4.  **Instance Type**: `t3.micro`.
+5.  **Key Pair**: Create/Select one.
+6.  **Network Settings**: Select **Existing security group** -> `whiteboard-backend-sg`.
+7.  **Launch**.
+8.  **SSH into the instance** and setup the environment:
+    ```bash
+    # Update
+    sudo apt update && sudo apt install -y git
 
-## Summary of Environment Variables needed
+    # Install Node 18
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt install -y nodejs
 
-**Backend:**
-- `DATABASE_URL`: Connection string to RDS.
-- `FRONTEND_URL`: URL of the deployed frontend (for CORS).
-- `PORT`: 4000
+    # Install PM2
+    sudo npm install -g pm2
 
-**Frontend:**
-- `NEXT_PUBLIC_API_URL`: URL of the deployed backend (https).
-- `NEXT_PUBLIC_WS_URL`: URL of the deployed backend (wss).
+    # Clone Code
+    git clone https://github.com/YOUR_GITHUB_USER/YOUR_REPO.git
+    cd YOUR_REPO/backend
+    npm install
+    npx prisma generate
+    ```
+9.  **Start the Server**:
+    ```bash
+    # Replace URL below with your RDS Endpoint
+    DATABASE_URL="postgresql://USER:PASS@ENDPOINT:5432/whiteboard?schema=public" PORT=4000 pm2 start npx --name "backend" -- tsx src/index.ts
+    ```
+
+---
+
+## Step 4: Load Balancer (ALB)
+This is the professional layer that gives you HTTPS without hacking.
+
+1.  **Target Groups** (EC2 Sidebar):
+    *   **Create target group**.
+    *   **Type**: Instances.
+    *   **Port**: `4000` (Your backend port).
+    *   **Protocol**: HTTP.
+    *   **Health Check path**: `/health` (or `/` if you don't have a health route).
+    *   **Next** -> Select your running instance -> **Include as pending below** -> **Create**.
+2.  **Load Balancers** (EC2 Sidebar):
+    *   **Create Load Balancer** -> **Application Load Balancer**.
+    *   **Name**: `whiteboard-alb`.
+    *   **Scheme**: Internet-facing.
+    *   **Security Groups**: Select `whiteboard-alb-sg`.
+    *   **Listeners**:
+        *   **HTTP (80)** -> Forward to `target-group-you-created`.
+        *   *(Note: For real HTTPS, you need a domain + ACM Certificate. For now, use HTTP port 80 or setup a self-signed cert if you just want to test).*
+    *   **Create**.
+3.  **Result**: You get a DNS Name (e.g., `whiteboard-alb-123.us-east-1.elb.amazonaws.com`).
+    *   This is your **API URL**.
+
+---
+
+## Step 5: Frontend (Amplify)
+1.  Go to **Amplify**.
+2.  **Create App** -> GitHub.
+3.  **Environment Variables**:
+    *   `NEXT_PUBLIC_API_URL`: `http://YOUR-ALB-DNS-NAME` (Note: It will be HTTP unless you attached a real domain/cert to the ALB).
+    *   `NEXT_PUBLIC_WS_URL`: `ws://YOUR-ALB-DNS-NAME`
+4.  **Deploy**.
+
+---
+
+## Interview Story (Cheat Sheet)
+**"Why did you choose this architecture?"**
+
+"I designed a 3-tier architecture focused on security and scalability:
+1.  **Frontend**: Deployed on **Amplify** for global CDN caching and ease of CI/CD.
+2.  **Backend**: Running on **EC2** behind an **Application Load Balancer**. The ALB allows me to handle traffic spikes in the future by simply adding more EC2 instances to the Target Group (Auto Scaling).
+3.  **Database**: **RDS PostgreSQL** in a private subnet. I deliberately blocked public access and only allowed the Backend Security Group to talk to it, ensuring data security."
+
