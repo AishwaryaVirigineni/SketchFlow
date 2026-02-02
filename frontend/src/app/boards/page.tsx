@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 type Board = {
   id: string;
   name: string;
+  ownerId?: string;
 };
 
 import AuthGuard from "@/components/AuthGuard";
@@ -14,12 +15,18 @@ import AuthGuard from "@/components/AuthGuard";
 export default function BoardsPage() {
   const [boards, setBoards] = useState<Board[]>([]);
   const router = useRouter();
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
   const [joinId, setJoinId] = useState("");
 
   useEffect(() => {
     // Basic check before fetch, though guard will handle it
     if (typeof window !== "undefined") {
+      try {
+        const user = JSON.parse(localStorage.getItem("whiteboard_user") || "{}");
+        if (user.id) setCurrentUserId(user.id);
+      } catch { }
+
       apiFetch("/boards").then(setBoards).catch(() => { });
     }
   }, []);
@@ -27,6 +34,16 @@ export default function BoardsPage() {
   async function createBoard() {
     const board = await apiFetch("/boards", { method: "POST" });
     router.push(`/board/${board.id}`);
+  }
+
+  async function deleteBoard(id: string) {
+    if (!confirm("Are you sure you want to delete this board?")) return;
+    try {
+      await apiFetch(`/boards/${id}`, { method: "DELETE" });
+      setBoards(prev => prev.filter(b => b.id !== id));
+    } catch (err: any) {
+      alert(err.message || "Failed to delete");
+    }
   }
 
   function handleJoin(e: React.FormEvent) {
@@ -126,24 +143,38 @@ export default function BoardsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {boards.map((b) => (
-                <div
-                  key={b.id}
-                  className="group relative bg-white border p-5 rounded-xl cursor-pointer hover:border-black/30 transition-all hover:-translate-y-1 shadow-sm"
-                  onClick={() => router.push(`/board/${b.id}`)}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-mono text-gray-500">
-                      {b.id.slice(0, 2)}
+              {boards.map((b) => {
+                const isOwner = b.ownerId === currentUserId;
+                return (
+                  <div
+                    key={b.id}
+                    className="group relative bg-white border p-5 rounded-xl cursor-pointer hover:border-black/30 transition-all hover:-translate-y-1 shadow-sm"
+                    onClick={() => router.push(`/board/${b.id}`)}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-mono text-gray-500">
+                        {b.id.slice(0, 2)}
+                      </div>
+                      <div className={`text-xs px-2 py-0.5 rounded-full ${isOwner ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-500'}`}>
+                        {isOwner ? "Owner" : "Shared"}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-400">Owner</div>
-                  </div>
-                  <div className="font-medium text-gray-900 truncate">{b.name}</div>
-                  <div className="text-[10px] text-gray-400 font-mono mt-1 truncate">{b.id}</div>
 
-                  <div className="absolute inset-0 border-2 border-black rounded-xl opacity-0 group-hover:opacity-10 pointer-events-none transition-opacity" />
-                </div>
-              ))}
+                    {isOwner && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteBoard(b.id); }}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all z-10"
+                        title="Delete Board"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+                      </button>
+                    )}
+
+                    <div className="font-medium text-gray-900 truncate">{b.name}</div>
+                    <div className="text-[10px] text-gray-400 font-mono mt-1 truncate">{b.id}</div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

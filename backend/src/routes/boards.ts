@@ -121,4 +121,28 @@ router.put("/:id/name", requireAuth, async (req: AuthedRequest, res) => {
   res.json(updated);
 });
 
+/**
+ * Delete board
+ */
+router.delete("/:id", requireAuth, async (req: AuthedRequest, res) => {
+  const userId = req.userId!;
+  const boardId = req.params.id;
+
+  const board = await prisma.board.findUnique({
+    where: { id: boardId },
+  });
+
+  if (!board) return res.status(404).json({ error: "Board not found" });
+
+  if (board.ownerId !== userId) {
+    return res.status(403).json({ error: "Not authorized to delete this board" });
+  }
+
+  await prisma.board.delete({
+    where: { id: boardId },
+  });
+
+  res.json({ success: true });
+});
+
 export default router;
