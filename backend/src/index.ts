@@ -27,11 +27,7 @@ if (!process.env.DATABASE_URL) {
 const prisma = new PrismaClient();
 
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not defined");
-}
 
-const prisma = new PrismaClient();
 
 const app = express();
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
