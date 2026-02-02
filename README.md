@@ -40,6 +40,7 @@ Built with **Next.js 14**, **Node.js**, **WebSockets**, and **Redis**, this appl
 
 ### Infrastructure (AWS)
 - **Compute**: AWS EC2 (Dockerized Containers)
+- **Traffic**: AWS Application Load Balancer (ALB)
 - **Database**: AWS RDS (Managed Postgres)
 - **Hosting**: AWS Amplify (Frontend CI/CD)
 - **Security**: Self-Signed SSL / Reverse Proxy, JWT Authentication, Security Groups
@@ -54,22 +55,14 @@ SketchFlow is architected to solve the **"Stateful Scaling Problem"** inherent i
 ### The Problem
 In a traditional monolithic WebSocket app, all users must connect to the same server to "see" each other. If that server fills up (e.g., max 10k connections), you cannot simply add a second server, because users on Server A cannot talk to Server B.
 
-### The Solution: Redis Pub/Sub Adapter
-SketchFlow implements a **Distributed Event Bus** using Redis.
+### The Solution: Redis Pub/Sub Adapter & Vertical Scaling
+SketchFlow implements a **Distributed Event Bus** using Redis and a Load Balanced architecture.
 
-```mermaid
-graph TD
-    UserA[User A] -->|WebSocket| Server1[Node Container 1]
-    UserB[User B] -->|WebSocket| Server2[Node Container 2]
-    
-    Server1 -- Publish Stroke --> Redis[(Redis Pub/Sub)]
-    Redis -- Broadcast --> Server2
-    Server2 -- Send to Client --> UserB
-```
+![AWS Architecture Diagram](frontend/public/aws-architecture.png)
 
-1.  **Horizontal Scaling**: The backend is containerized (Docker). You can spin up 10, 50, or 100 EC2 instances behind a Load Balancer.
-2.  **Event Broadcasting**: When a user draws on Instance A, the event is published to Redis. All other instances subscribe to updates and forward the event to their local users.
-3.  **Result**: Infinite horizontal scalability while maintaining shared state.
+1.  **Traffic Routing (AWS ALB)**: An **Application Load Balancer** sits at the edge, terminating SSL (HTTPS/WSS) and distributing WebSocket connections across the backend fleet using a Round-Robin algorithm.
+2.  **Vertical Scaling (Docker)**: Node.js is single-threaded. To maximize the CPU utilization of our EC2 instances, we deploy **multiple Node.js containers per instance**. This allows the application to use all available CPU cores efficiently.
+3.  **Event Broadcasting (Redis)**: When a user draws on 'Container A', the event is published to Redis. All other containers subscribe to updates and forward the event to their local users, ensuring global synchronization.
 
 ---
 
