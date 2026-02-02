@@ -51,6 +51,8 @@ const subClient = pubClient.duplicate();
         // If I sent this message, I already handled local broadcast.
         if (originServerId === SERVER_ID) return;
 
+        console.log(`📡 Received remote update for room: ${roomId}`);
+
         // Broadcast to my local clients for this room
         const clients = rooms.get(roomId);
         if (clients) {
