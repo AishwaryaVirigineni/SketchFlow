@@ -48,21 +48,31 @@ Built with **Next.js 14**, **Node.js**, **WebSockets**, and **Redis**, this appl
 
 ---
 
-## 📈 Architecture & Scalability
+## 📈 System Architecture
 
-SketchFlow is architected to solve the **"Stateful Scaling Problem"** inherent in WebSocket applications.
-
-### The Problem
-In a traditional monolithic WebSocket app, all users must connect to the same server to "see" each other. If that server fills up (e.g., max 10k connections), you cannot simply add a second server, because users on Server A cannot talk to Server B.
-
-### The Solution: Redis Pub/Sub Adapter & Vertical Scaling
-SketchFlow implements a **Distributed Event Bus** using Redis and a Load Balanced architecture.
+SketchFlow employs a **distributed, event-driven architecture** designed for high-concurrency real-time collaboration.
 
 ![AWS Architecture Diagram](frontend/public/aws-architecture.png)
 
-1.  **Traffic Routing (AWS ALB)**: An **Application Load Balancer** sits at the edge, terminating SSL (HTTPS/WSS) and distributing WebSocket connections across the backend fleet using a Round-Robin algorithm.
-2.  **Vertical Scaling (Docker)**: Node.js is single-threaded. To maximize the CPU utilization of our EC2 instances, we deploy **multiple Node.js containers per instance**. This allows the application to use all available CPU cores efficiently.
-3.  **Event Broadcasting (Redis)**: When a user draws on 'Container A', the event is published to Redis. All other containers subscribe to updates and forward the event to their local users, ensuring global synchronization.
+### Core Components workflow
+
+1.  **Frontend Delivery**: 
+    The Next.js client is delivered via **AWS Amplify** (Global CDN), ensuring low-latency initial load times.
+
+2.  **Traffic Distribution (AWS ALB)**: 
+    Incoming WebSocket connections are managed by an **Application Load Balancer**, which handles SSL termination and distributes traffic across the backend fleet.
+
+3.  **Compute Layer (Vertical Scaling)**: 
+    The backend runs on **AWS EC2** instances. Within each instance, we deploy **multiple dockerized Node.js containers**. This "Vertical Scaling" strategy maximizes the throughput of the single-threaded Node.js runtime by utilizing all available CPU cores.
+
+4.  **Synchronization Engine (Redis Pub/Sub)**: 
+    To maintain state across distributed containers, SketchFlow uses **Redis** as a real-time message bus.
+    *   *Action*: When User A draws a stroke, the event is published to Redis.
+    *   *Propagation*: Redis instantly broadcasts this event to all active backend containers.
+    *   *Result*: Users connected to different servers receive updates in near real-time (< 50ms).
+
+5.  **Data Persistence**: 
+    Board history and user accounts are asynchronously persisted to **AWS RDS (PostgreSQL)**, decoupling storage from the real-time layer for reliability.
 
 ---
 
