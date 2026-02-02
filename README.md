@@ -1,11 +1,10 @@
 # SketchFlow - High-Performance Collaborative Whiteboard
 
-![SketchFlow Login Interface](frontend/public/sketchflow-preview.png)
-
 **SketchFlow** is a distributed, real-time collaborative whiteboard platform designed for high scalability and low-latency interaction. It allows multiple users to draw, sketch, and brainstorm on shared digital canvases with instant synchronization across devices.
 
 Built with **Next.js 14**, **Node.js**, **WebSockets**, and **Redis**, this application demonstrates a modern approach to handling stateful connections in a stateless cloud environment.
 
+![SketchFlow Login Interface](frontend/public/sketchflow-preview.png)
 ---
 
 ## 🚀 Key Features
