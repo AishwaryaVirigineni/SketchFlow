@@ -1,21 +1,28 @@
-FROM node:20-alpine
+# Use a lightweight Node.js version
+FROM node:18-alpine
 
+# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first (better caching)
 COPY package*.json ./
 
-# Install dependencies (including devDependencies for tsx)
-RUN npm install
+# Install dependencies
+RUN npm ci
 
-# Copy source code
-COPY . .
-
-# Generate Prisma Client
+# Copy Prisma schema and generate client
+COPY prisma ./prisma
 RUN npx prisma generate
 
-# Expose the port
+# Copy the rest of the application code
+COPY . .
+
+# Build the TypeScript code to JavaScript
+RUN npm run build
+
+# Expose the port the app runs on
 EXPOSE 4000
 
-# Start the application using tsx for robust TS execution
-CMD ["npx", "tsx", "src/index.ts"]
+# Start the application
+# We use CMD to invoke the compiled JS
+CMD ["npm", "run", "start"]
