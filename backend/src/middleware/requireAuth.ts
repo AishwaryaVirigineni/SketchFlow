@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { getTokenFromRequest, verifyAccessToken } from "../lib/auth";
+import { getTokenFromRequest, verifyAccessToken } from "../lib/auth.js";
 
 export type AuthedRequest = Request & {
   userId?: string;

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
-import { requireAuth } from "../middleware/requireAuth";
+import { requireAuth } from "../middleware/requireAuth.js";
 import { randomUUID } from "crypto";
-import type { AuthedRequest } from "../middleware/requireAuth";
+import type { AuthedRequest } from "../middleware/requireAuth.js";
 
 
 

@@ -1,10 +1,10 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
-import { AUTH_COOKIE, cookieOptions, signAccessToken } from "../lib/auth";
+import { AUTH_COOKIE, cookieOptions, signAccessToken } from "../lib/auth.js";
 
-import { requireAuth, type AuthedRequest } from "../middleware/requireAuth";
-import { pickRandomColor, initialsFromName } from "../utils/userDefaults";
+import { requireAuth, type AuthedRequest } from "../middleware/requireAuth.js";
+import { pickRandomColor, initialsFromName } from "../utils/userDefaults.js";
 
 import jwt from "jsonwebtoken";
 const JWT_SECRET = process.env.JWT_SECRET!;
