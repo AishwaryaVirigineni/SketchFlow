@@ -14,14 +14,15 @@ sudo docker rm -f sketchflow-container || true
 
 # 4. Run new container
 # We map (-v) the certs from the HOST to the CONTAINER so HTTPS works.
-echo "🚀 Starting Container..."
+echo "🚀 Starting Container (Host Network)..."
 sudo docker run -d \
   --name sketchflow-container \
-  -p 4000:4000 \
+  --network=host \
   -v $(pwd)/server.key:/app/server.key \
   -v $(pwd)/server.cert:/app/server.cert \
   -e FRONTEND_URL="https://main.d1kzbh6gr5zmmo.amplifyapp.com" \
   -e JWT_SECRET="supersecret123" \
+  -e REDIS_URL="redis://localhost:6379" \
   -e DATABASE_URL="postgresql://postgres:postgres@database-1.czkg0sqmkmrz.us-east-2.rds.amazonaws.com:5432/whiteboard?schema=public" \
   sketchflow-backend
 

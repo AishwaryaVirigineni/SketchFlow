@@ -1,4 +1,4 @@
-// MUST be first line - Trigger Restart 7
+// MUST be first line - Trigger Restart 9
 import "dotenv/config";
 
 import express from "express";
@@ -8,6 +8,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { WebSocketServer, WebSocket } from "ws";
+import { createClient } from "redis";
+import { randomUUID } from "crypto";
 // import { PrismaClient } from "./generated/prisma";
 import { PrismaClient } from "@prisma/client";
 
@@ -20,13 +22,52 @@ import boardsRouter from "./routes/boards.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Unique ID for this server instance
+const SERVER_ID = randomUUID();
+console.log(`🚀 Server Instance ID: ${SERVER_ID}`);
+
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not defined");
 }
 
 const prisma = new PrismaClient();
 
+// Setup Redis Clients
+const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+const pubClient = createClient({ url: redisUrl });
+const subClient = pubClient.duplicate();
 
+(async () => {
+  try {
+    await pubClient.connect();
+    await subClient.connect();
+    console.log("✅ Connected to Redis");
+
+    // Subscribe to global updates
+    await subClient.subscribe("whiteboard_updates", (message) => {
+      try {
+        const { roomId, data, originServerId } = JSON.parse(message);
+
+        // If I sent this message, I already handled local broadcast.
+        if (originServerId === SERVER_ID) return;
+
+        // Broadcast to my local clients for this room
+        const clients = rooms.get(roomId);
+        if (clients) {
+          for (const client of clients) {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(data));
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Redis message error:", err);
+      }
+    });
+  } catch (err) {
+    console.error("❌ Redis Connection Error (Is Redis running?):", err);
+  }
+})();
 
 
 const app = express();
@@ -323,13 +364,23 @@ wss.on("connection", (socket: WebSocket) => {
 });
 
 function broadcast(roomId: string, data: any, sender: WebSocket) {
+  // 1. Local Broadcast (Fast)
   const clients = rooms.get(roomId);
-  if (!clients) return;
-
-  for (const client of clients) {
-    if (client !== sender && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(data));
+  if (clients) {
+    for (const client of clients) {
+      if (client !== sender && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(data));
+      }
     }
+  }
+
+  // 2. Distributed Broadcast (Redis)
+  if (pubClient.isOpen) {
+    pubClient.publish("whiteboard_updates", JSON.stringify({
+      roomId,
+      data,
+      originServerId: SERVER_ID
+    }));
   }
 }
 
