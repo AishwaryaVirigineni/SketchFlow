@@ -3,6 +3,9 @@ import "dotenv/config";
 
 import express from "express";
 import http from "http";
+import https from "https";
+import fs from "fs";
+import path from "path";
 import { WebSocketServer, WebSocket } from "ws";
 // import { PrismaClient } from "./generated/prisma";
 import { PrismaClient } from "@prisma/client";
@@ -34,7 +37,21 @@ app.get("/", (_req, res) => {
   res.json({ message: "Backend running" });
 });
 
-const server = http.createServer(app);
+let server;
+const certPath = path.join(__dirname, "../server.cert");
+const keyPath = path.join(__dirname, "../server.key");
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  console.log("🔒 Found certificates, starting HTTPS server...");
+  server = https.createServer({
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath),
+  }, app);
+} else {
+  console.log("🔓 No certificates found, starting HTTP server...");
+  server = http.createServer(app);
+}
+
 const wss = new WebSocketServer({ server, path: "/ws" });
 
 // roomId -> sockets
