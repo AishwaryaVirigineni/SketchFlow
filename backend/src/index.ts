@@ -13,9 +13,9 @@ import { PrismaClient } from "@prisma/client";
 
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import { authRouter } from "./routes/auth";
+import { authRouter } from "./routes/auth.js";
 
-import boardsRouter from "./routes/boards";
+import boardsRouter from "./routes/boards.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
