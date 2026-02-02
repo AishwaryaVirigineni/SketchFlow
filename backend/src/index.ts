@@ -6,6 +6,7 @@ import http from "http";
 import https from "https";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { WebSocketServer, WebSocket } from "ws";
 // import { PrismaClient } from "./generated/prisma";
 import { PrismaClient } from "@prisma/client";
@@ -15,6 +16,15 @@ import cors from "cors";
 import { authRouter } from "./routes/auth";
 
 import boardsRouter from "./routes/boards";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not defined");
+}
+
+const prisma = new PrismaClient();
 
 
 if (!process.env.DATABASE_URL) {
