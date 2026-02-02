@@ -1,6 +1,6 @@
 # SketchFlow - High-Performance Collaborative Whiteboard
 
-![SketchFlow Banner](https://via.placeholder.com/1200x400?text=SketchFlow+Real-Time+Collaboration)
+![SketchFlow Login Interface](frontend/public/sketchflow-preview.png)
 
 **SketchFlow** is a distributed, real-time collaborative whiteboard platform designed for high scalability and low-latency interaction. It allows multiple users to draw, sketch, and brainstorm on shared digital canvases with instant synchronization across devices.
 
