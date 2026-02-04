@@ -105,11 +105,3 @@ While the current version is production-grade, the following improvements are pl
 *   **S3 Snapshotting**: Currently, stroke history is replayed from SQL. For boards with 10k+ strokes, we plan to periodically dump the canvas state to a JSON file in AWS S3 for instant loading.
 *   **Vector Conflict Resolution**: Implement CRDTs (Conflict-free Replicated Data Types) like Y.js for decentralized conflict handling on unreliable networks.
 *   **Kubernetes (EKS)**: Migrate from raw Docker/EC2 to Kubernetes for auto-scaling capabilities based on CPU/Connection load.
-
----
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-**Author**: [Aishwarya Virigineni]
